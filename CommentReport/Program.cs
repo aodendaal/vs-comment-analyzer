@@ -27,10 +27,8 @@ namespace CommentReport
 
             var workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
             var solution = workspace.OpenSolutionAsync(filename).Result;
-
-            var projects = solution.Projects;
-
-            foreach (var project in projects)
+            
+            foreach (var project in solution.Projects)
             {
                 var compilation = project.GetCompilationAsync().Result;
 
@@ -39,12 +37,6 @@ namespace CommentReport
                     var root = tree.GetRootAsync().Result;
                     DisplayNode(root);
                 }
-
-                //var tree = compilation.SyntaxTrees.First().GetRootAsync().Result;
-
-                //var root = tree.DescendantNodesAndSelf().OfType<NamespaceDeclarationSyntax>().First();
-
-                //DisplayNode(root);
             }
 
             Console.ResetColor();
@@ -52,40 +44,7 @@ namespace CommentReport
 
         private static void DisplayNode(SyntaxNodeOrToken node, string indent = "")
         {
-            if (node.IsNode)
-            {
-                var childNode = node.AsNode();
-                var name = childNode.GetType().ToString();
-                name = name.Replace("Microsoft.CodeAnalysis.CSharp.Syntax.", "");
-                name = name.Replace("Syntax", "");
-                //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write($"{indent} {name} ");
-
-                Console.ResetColor();
-                if (childNode is NamespaceDeclarationSyntax)
-                {
-                    //Console.WriteLine((childNode as NamespaceDeclarationSyntax).Name);
-                }
-                else if (childNode is UsingDirectiveSyntax)
-                {
-                    //Console.WriteLine((childNode as UsingDirectiveSyntax).Name);
-                    return;
-                }
-                else if (childNode is ClassDeclarationSyntax)
-                {
-                    //Console.WriteLine((childNode as ClassDeclarationSyntax).Identifier);
-                    //return;
-                }
-                else if (childNode is MethodDeclarationSyntax)
-                {
-                    //Console.WriteLine((childNode as MethodDeclarationSyntax).Identifier);
-                }
-                else
-                {
-                    //Console.WriteLine();
-                }
-            }
-            else
+            if (node.IsToken)
             {
                 var token = node.AsToken();
 
@@ -93,38 +52,18 @@ namespace CommentReport
                 {
                     if (trivia.Kind() == SyntaxKind.SingleLineCommentTrivia)
                     {
-                        //var parentNode = token.Parent;
-                        //Console.ForegroundColor = ConsoleColor.Blue;
-                        //Console.WriteLine($"{indent} {parentNode.GetType()}");
-
-                        //Console.ForegroundColor = ConsoleColor.Green;
-                        //Console.Write($"{indent} {token.Kind()} ");
-                        //Console.ResetColor();
-                        //Console.WriteLine(token.Text);
-
-                        //var propertyId = GetParentName<PropertyDeclarationSyntax>(token.Parent);
-                        //var methodId = GetParentName<MethodDeclarationSyntax>(token.Parent);
-                        //var classId = GetParentName<ClassDeclarationSyntax>(token.Parent);
                         var parent = GetParentName(token.Parent);
                         var comment = token.LeadingTrivia.ToString();
 
                         Console.ResetColor();
                         Console.WriteLine(parent);
-                        //Console.ForegroundColor = ConsoleColor.Blue;
-                        //Console.WriteLine(classId);
-                        //Console.ForegroundColor = ConsoleColor.Green;
-                        //Console.WriteLine((methodId != null) ? methodId : propertyId);
+
                         Console.ForegroundColor = ConsoleColor.DarkRed;
                         Console.WriteLine(comment.Trim());
-
-                        //Console.ForegroundColor = ConsoleColor.DarkRed;
-                        //Console.Write($"'{comment.Trim()}'\t");
-                        //Console.ResetColor();
-                        //Console.Write($"{methodId}\t{classId}");
-
                     }
                 }
             }
+
             var children = node.ChildNodesAndTokens();
 
             foreach (var child in children.OrderBy(t => t.FullSpan))
@@ -138,17 +77,36 @@ namespace CommentReport
             if (node is PropertyDeclarationSyntax)
             {
                 var propNode = node as PropertyDeclarationSyntax;
-                return propNode.Type.GetText().ToString() + " " + propNode.Identifier.Text;
+
+                var parentName = GetParentName(node.Parent);
+                return parentName + "\n" + propNode.Type.GetText().ToString() + propNode.Identifier.Text;
             }
             else if (node is MethodDeclarationSyntax)
             {
                 var funcNode = node as MethodDeclarationSyntax;
-                return funcNode.Identifier + "()";
+                var parentName = GetParentName(node.Parent);
+                return parentName + "\n" + funcNode.Identifier + "()";
             }
             else if (node is ClassDeclarationSyntax)
             {
                 var classNode = node as ClassDeclarationSyntax;
-                return "class " + classNode.Identifier;
+                return "Class " + classNode.Identifier;
+            }
+            else if (node is UsingDirectiveSyntax)
+            {
+                var usingNode = node as UsingDirectiveSyntax;
+                return "Using " + usingNode.Name;
+            }
+            else if (node is NamespaceDeclarationSyntax)
+            {
+                var namespaceNode = node as NamespaceDeclarationSyntax;
+                return "Namespace " + namespaceNode.Name;
+            }
+            else if (node is AttributeListSyntax)
+            {
+                var parentName = GetParentName(node.Parent);
+                var attributeNode = node as AttributeListSyntax;
+                return "Attribute " + parentName;
             }
             else
             {
